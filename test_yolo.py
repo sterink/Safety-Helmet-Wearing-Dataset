@@ -12,6 +12,7 @@ from gluoncv import model_zoo, data, utils
 #from matplotlib import pyplot as plt
 import mxnet as mx
 import cv2
+import numpy as np
 import argparse
 
 def parse_args():
@@ -33,6 +34,7 @@ def parse_args():
 
     parser.add_argument('--gpu', action='store_false',
                         help='use gpu or cpu.')
+    parser.add_argument('--dump', type=bool, default=False, help='save result into video or not')
     
     args = parser.parse_args()
     return args
@@ -73,13 +75,28 @@ if __name__ == '__main__':
         print('use mobile0.25 to extract feature')
 
     cap = cv2.VideoCapture(args.url)
+
+    if args.dump:
+        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        sz = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+        out = cv2.VideoWriter('helmet.avi',fourcc, 20.0, sz,True)
+
     while True:
-        # ret, frame = cap.read()
-        frame = cv2.imread(args.image)
+        ret, frame = cap.read()
+        if ret==False:
+            break
+            
+
+        # cv2.imshow('image', frame)
+        # cv2.waitKey(1)
+        # continue
+        # # frame = cv2.imread(args.image)
 
         img = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
-        imgs = [mx.nd.array(img)]
+        imgs = [mx.nd.array(img,dtype=np.uint8)]
         x, orig_img = data.transforms.presets.yolo.transform_test(imgs, short=args.short)
+        scale = img.shape[0]/orig_img.shape[0]
     
         x = x.as_in_context(ctx)
         box_ids, scores, bboxes = net(x)
@@ -92,8 +109,17 @@ if __name__ == '__main__':
         active = bbPath.contains_points(points)
         print('active corners ',points[active])
 
-        ax = utils.viz.cv_plot_bbox(orig_img, bboxes[0], scores[0], box_ids[0], class_names=net.classes,thresh=args.threshold)
-        cv2.imshow('image', orig_img[...,::-1])
-        cv2.waitKey(0)
+        ax = utils.viz.cv_plot_bbox(frame, bboxes[0], scores[0], box_ids[0], scale=scale, class_names=net.classes,thresh=args.threshold)
+        if args.dump:
+            out.write(frame)
+
+        # cv2.imshow('image', cv2.resize(frame,None,fx=0.25,fy=0.25))
+        # cv2.waitKey(1)
         # cv2.imwrite(frame.split('.')[0] + '_result.jpg', orig_img[...,::-1])
-    cv2.destroyAllWindows()
+    
+
+cap.release()
+if args.dump:
+    out.release()
+
+cv2.destroyAllWindows()

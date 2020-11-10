@@ -57,7 +57,7 @@ if __name__ == '__main__':
     cap = cv.VideoCapture(args.url)
     ret, frame = cap.read()
 
-    frame = cv.imread('image/1.jpg')
+    frame = cv.imread('site.jpg')
     canvas = frame.copy()
 
     
